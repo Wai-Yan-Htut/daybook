@@ -1,0 +1,57 @@
+services:
+  frontend:
+    image: task-manager-frontend:v1
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "3001:3000"
+    depends_on: 
+      - backend
+    networks:
+      - task-manager-network
+
+  backend:
+    image: task-manager-backend:v1
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://database:5432/task_manager
+      DB_USERNAME: task_user
+      DB_PASSWORD: task_password
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m"
+    ports:
+      - "8081:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - task-manager-network
+
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - task-manager-data:/var/lib/postgresql/data
+    networks:
+      - task-manager-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+networks:
+  task-manager-network:
+    name: task-manager-network
+    driver: bridge
+
+volumes:
+  task-manager-data:
+    external: true
+    name: task-manager-data
+
